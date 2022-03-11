@@ -1,3 +1,8 @@
+# MarketPlace
+ This Dapp interacts with the Smart Contract 
+ to buy or pay for a product via the CeloExtensionWallet 
+
+
 # Install
 
 ```

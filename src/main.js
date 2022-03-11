@@ -1,10 +1,12 @@
-import Web3 from 'web3'
-import { newKitFromWeb3 } from '@celo/contractkit'
+import Web3 from "web3"
+import { newKitFromWeb3 } from "@celo/contractkit"
 import BigNumber from "bignumber.js"
-import marketplaceAbi from '../contract/marketplace.abi.json';
+import marketplaceAbi from "../contract/marketplace.abi.json"
+import erc20Abi from "../contract/erc20.abi.json"
 
-const ERC20_DECIMALS = 18;
-const MPContractAddress = "0x9AA3F41E10cA19B43D0cbd9638B81b7b423fB332";
+const ERC20_DECIMALS = 18
+const MPContractAddress = "0x178134c92EC973F34dD0dd762284b852B211CFC8"
+const cUSDContractAddress = "0x874069Fa1Eb16D44d622F2e0Ca25eeA172369bC1"
 
 let kit
 let contract
@@ -14,10 +16,11 @@ const connectCeloWallet = async function () {
   if (window.celo) {
     notification("⚠️ Please approve this DApp to use it.")
     try {
-      await window.celo.enable();
-      notificationOff();
-      const web3 = new Web3(window.celo);
-      kit = newKitFromWeb3(web3);
+      await window.celo.enable()
+      notificationOff()
+
+      const web3 = new Web3(window.celo)
+      kit = newKitFromWeb3(web3)
 
       const accounts = await kit.web3.eth.getAccounts()
       kit.defaultAccount = accounts[0]
@@ -31,6 +34,15 @@ const connectCeloWallet = async function () {
   }
 }
 
+async function approve(_price) {
+  const cUSDContract = new kit.web3.eth.Contract(erc20Abi, cUSDContractAddress)
+
+  const result = await cUSDContract.methods
+    .approve(MPContractAddress, _price)
+    .send({ from: kit.defaultAccount })
+  return result
+}
+
 const getBalance = async function () {
   const totalBalance = await kit.getTotalBalance(kit.defaultAccount)
   const cUSDBalance = totalBalance.cUSD.shiftedBy(-ERC20_DECIMALS).toFixed(2)
@@ -40,7 +52,6 @@ const getBalance = async function () {
 const getProducts = async function() {
   const _productsLength = await contract.methods.getProductsLength().call()
   const _products = []
-
   for (let i = 0; i < _productsLength; i++) {
     let _product = new Promise(async (resolve, reject) => {
       let p = await contract.methods.readProduct(i).call()
@@ -94,7 +105,7 @@ function productTemplate(_product) {
           <a class="btn btn-lg btn-outline-dark buyBtn fs-6 p-3" id=${
             _product.index
           }>
-            Buy for ${_product.price} cUSD
+            Buy for ${_product.price.shiftedBy(-ERC20_DECIMALS).toFixed(2)} cUSD
           </a>
         </div>
       </div>
@@ -130,7 +141,7 @@ function notificationOff() {
   document.querySelector(".alert").style.display = "none"
 }
 
-window.addEventListener('load', async () => {
+window.addEventListener("load", async () => {
   notification("⌛ Loading...")
   await connectCeloWallet()
   await getBalance()
@@ -162,11 +173,25 @@ document
     getProducts()
   })
 
-document.querySelector("#marketplace").addEventListener("click", (e) => {
-  if(e.target.className.includes("buyBtn")) {
+document.querySelector("#marketplace").addEventListener("click", async (e) => {
+  if (e.target.className.includes("buyBtn")) {
     const index = e.target.id
-    products[index].sold++
-    notification(`🎉 You successfully bought "${products[index].name}".`)
-    renderProducts()
+    notification("⌛ Waiting for payment approval...")
+    try {
+      await approve(products[index].price)
+    } catch (error) {
+      notification(`⚠️ ${error}.`)
+    }
+    notification(`⌛ Awaiting payment for "${products[index].name}"...`)
+    try {
+      const result = await contract.methods
+        .buyProduct(index)
+        .send({ from: kit.defaultAccount })
+      notification(`🎉 You successfully bought "${products[index].name}".`)
+      getProducts()
+      getBalance()
+    } catch (error) {
+      notification(`⚠️ ${error}.`)
+    }
   }
 })

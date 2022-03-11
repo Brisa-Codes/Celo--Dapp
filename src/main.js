@@ -14,10 +14,10 @@ const connectCeloWallet = async function () {
   if (window.celo) {
     notification("⚠️ Please approve this DApp to use it.")
     try {
-      await window.celo.enable()
-      notificationOff()
-      const web3 = new Web3(window.celo)
-      kit = newKitFromWeb3(web3)
+      await window.celo.enable();
+      notificationOff();
+      const web3 = new Web3(window.celo);
+      kit = newKitFromWeb3(web3);
 
       const accounts = await kit.web3.eth.getAccounts()
       kit.defaultAccount = accounts[0]

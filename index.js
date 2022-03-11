@@ -13,7 +13,6 @@ let webpackDevServerOptions = {
 
 webpackDevServer.addDevServerEntrypoints(webpackConfig, webpackDevServerOptions);
 let webpackCompiler = webpack(webpackConfig);
-
 let app = new webpackDevServer(webpackCompiler, webpackDevServerOptions);
 
 let port = process.env.PORT || 3000;
